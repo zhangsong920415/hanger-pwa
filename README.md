@@ -1,2 +1,0 @@
-# hanger-pwa
-hanger-pwa

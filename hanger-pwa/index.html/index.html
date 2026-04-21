@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
   <title>吊挂生产节奏系统</title>
 
   <link rel="manifest" href="./manifest.json" />
@@ -11,117 +14,320 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="吊挂节奏" />
 
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      background: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: 22px;
+      text-align: center;
+      color: #2563eb;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 10px 12px;
+      font-size: 16px;
+      background: #fff;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      border: none;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-blue {
+      background: #2563eb;
+    }
+
+    .btn-green {
+      background: #16a34a;
+    }
+
+    .btn-indigo {
+      background: #4f46e5;
+    }
+
+    .btn-orange {
+      background: #f97316;
+      text-align: center;
+      display: block;
+      line-height: 24px;
+    }
+
+    .warning {
+      text-align: center;
+      font-weight: 700;
+      margin-top: 12px;
+      font-size: 16px;
+    }
+
+    .warning.good {
+      color: #16a34a;
+    }
+
+    .warning.bad {
+      color: #dc2626;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border: 1px solid #d1d5db;
+      padding: 8px 6px;
+      text-align: center;
+    }
+
+    th {
+      background: #e5e7eb;
+    }
+
+    .row-danger {
+      background: #fecaca;
+    }
+
+    .text-green {
+      color: #16a34a;
+      font-weight: 700;
+    }
+
+    .text-yellow {
+      color: #ca8a04;
+      font-weight: 700;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      border: none;
+      color: white;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      min-height: auto;
+      width: auto;
+    }
+
+    .action-group {
+      display: grid;
+      gap: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .tips {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 14px;
+        border-radius: 14px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        min-width: 640px;
+      }
+    }
+  </style>
 </head>
-<body class="bg-gray-100 p-3">
-  <div id="captureArea" class="max-w-6xl mx-auto bg-white p-4 rounded-xl shadow space-y-4">
-    <h1 class="text-xl font-bold text-center text-blue-600">
-      吊挂生产节奏智能控制系统
-    </h1>
+<body>
+  <div class="container">
+    <div id="captureArea" class="card">
+      <h1>吊挂生产节奏智能控制系统</h1>
 
-    <div class="grid grid-cols-2 gap-2">
-      <select id="factory" class="border p-2 rounded">
-        <option value="">选择工厂</option>
-        <option value="彬彬鑫典">彬彬鑫典</option>
-        <option value="三伏潭">三伏潭</option>
-        <option value="勤劳">勤劳</option>
-        <option value="外协厂">外协厂</option>
-      </select>
+      <div class="form-grid">
+        <select id="factory">
+          <option value="">选择工厂</option>
+          <option value="彬彬鑫典">彬彬鑫典</option>
+          <option value="三伏潭">三伏潭</option>
+          <option value="勤劳">勤劳</option>
+          <option value="外协厂">外协厂</option>
+        </select>
 
-      <input id="style" placeholder="款号" class="border p-2 rounded" />
-      <input type="date" id="fabricDate" class="border p-2 rounded" />
-      <input type="number" id="prepareDays" placeholder="线外准备天数" step="0.5" class="border p-2 rounded" />
-      <input type="number" id="onlineDays" placeholder="线上生产天数" class="border p-2 rounded" />
+        <input id="style" placeholder="款号" />
 
-      <select id="wash" class="border p-2 rounded">
-        <option value="0">不洗水</option>
-        <option value="1">水洗(+1天)</option>
-        <option value="2">水洗(+2天)</option>
-        <option value="3">水洗(+3天)</option>
-        <option value="4">水洗(+4天)</option>
-        <option value="5">水洗(+5天)</option>
-      </select>
+        <input type="date" id="fabricDate" />
+        <input type="number" id="prepareDays" placeholder="线外准备天数" step="0.5" />
+
+        <input type="number" id="onlineDays" placeholder="线上生产天数" />
+
+        <select id="wash">
+          <option value="0">不洗水</option>
+          <option value="1">水洗(+1天)</option>
+          <option value="2">水洗(+2天)</option>
+          <option value="3">水洗(+3天)</option>
+          <option value="4">水洗(+4天)</option>
+          <option value="5">水洗(+5天)</option>
+        </select>
+
+        <button class="btn-blue full" onclick="addRow()">新增款式</button>
+      </div>
+
+      <div id="lineWarning" class="warning good">✅ 生产节奏正常</div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>工厂</th>
+              <th>款号</th>
+              <th>线外天数</th>
+              <th>预计上线</th>
+              <th>预计出货</th>
+              <th>生产预警</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="tips">手机上可左右滑动查看表格</div>
     </div>
 
-    <button onclick="addRow()" class="w-full bg-blue-600 text-white p-2 rounded">
-      新增款式
-    </button>
+    <div class="card">
+      <div class="action-group">
+        <button class="btn-green" onclick="exportImage()">导出截图发群</button>
+        <button class="btn-indigo" onclick="exportBackup()">导出备份文件</button>
 
-    <div id="lineWarning" class="text-center font-bold"></div>
-
-    <div class="overflow-x-auto">
-      <table class="min-w-full text-xs mt-4 border">
-        <thead class="bg-gray-200">
-          <tr>
-            <th class="border p-1">工厂</th>
-            <th class="border p-1">款号</th>
-            <th class="border p-1">线外天数</th>
-            <th class="border p-1">预计上线</th>
-            <th class="border p-1">预计出货</th>
-            <th class="border p-1">生产预警</th>
-            <th class="border p-1">操作</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
+        <label class="btn-orange">
+          导入备份文件
+          <input
+            type="file"
+            id="backupFile"
+            accept=".json"
+            onchange="importBackup(event)"
+            class="hidden"
+          />
+        </label>
+      </div>
     </div>
-  </div>
-
-  <div class="max-w-6xl mx-auto mt-4 grid grid-cols-1 gap-3">
-    <button onclick="exportImage()" class="w-full bg-green-600 text-white p-3 rounded">
-      导出截图发群
-    </button>
-
-    <button onclick="exportBackup()" class="w-full bg-indigo-600 text-white p-3 rounded">
-      导出备份文件
-    </button>
-
-    <label class="w-full bg-orange-500 text-white p-3 rounded text-center block cursor-pointer">
-      导入备份文件
-      <input type="file" id="backupFile" accept=".json" onchange="importBackup(event)" class="hidden" />
-    </label>
   </div>
 
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('./service-worker.js');
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./service-worker.js").catch(function (err) {
+          console.log("service worker 注册失败:", err);
+        });
       });
     }
 
     let dataList = [];
 
     function saveData() {
-      localStorage.setItem('dataList', JSON.stringify(dataList));
+      localStorage.setItem("dataList", JSON.stringify(dataList));
     }
 
     function loadData() {
-      const savedData = localStorage.getItem('dataList');
+      const savedData = localStorage.getItem("dataList");
       if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        dataList = parsedData.map(item => ({
-          ...item,
-          onlineStart: new Date(item.onlineStart),
-          shipDate: new Date(item.shipDate)
-        }));
+        try {
+          const parsedData = JSON.parse(savedData);
+          dataList = parsedData.map((item) => ({
+            ...item,
+            onlineStart: new Date(item.onlineStart),
+            shipDate: new Date(item.shipDate)
+          }));
+        } catch (e) {
+          dataList = [];
+        }
       }
     }
 
     function addRow() {
-      const factory = document.getElementById('factory').value;
-      const style = document.getElementById('style').value;
-      const fabricDate = document.getElementById('fabricDate').value;
-      const prepareDays = parseFloat(document.getElementById('prepareDays').value) || 1;
-      const onlineDays = parseInt(document.getElementById('onlineDays').value) || 1;
-      const wash = parseInt(document.getElementById('wash').value);
+      const factory = document.getElementById("factory").value.trim();
+      const style = document.getElementById("style").value.trim();
+      const fabricDate = document.getElementById("fabricDate").value;
+      const prepareDays = parseFloat(document.getElementById("prepareDays").value) || 1;
+      const onlineDays = parseInt(document.getElementById("onlineDays").value) || 1;
+      const wash = parseInt(document.getElementById("wash").value) || 0;
 
       if (!factory || !style || !fabricDate) {
-        alert('请先填写完整信息');
+        alert("请先填写完整信息");
         return;
       }
 
-      const fabric = new Date(fabricDate);
+      const fabric = new Date(fabricDate + "T00:00:00");
       const onlineStart = new Date(fabric);
       onlineStart.setDate(onlineStart.getDate() + 2 + prepareDays);
 
@@ -139,71 +345,80 @@
 
       saveData();
       renderTable();
+      clearForm();
+    }
+
+    function clearForm() {
+      document.getElementById("style").value = "";
+      document.getElementById("fabricDate").value = "";
+      document.getElementById("prepareDays").value = "";
+      document.getElementById("onlineDays").value = "";
+      document.getElementById("wash").value = "0";
     }
 
     function renderTable() {
-      let tbody = '';
+      let tbody = "";
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       let futureOnlineExists = false;
 
-      dataList = dataList.filter(item => {
+      dataList = dataList.filter((item) => {
         const diffDays = dateDiffInDays(item.shipDate, today);
         return diffDays <= 2;
       });
 
-      dataList.forEach(item => {
+      dataList.forEach((item) => {
         if (item.onlineStart <= addDays(today, 1)) {
           futureOnlineExists = true;
         }
 
-        let status = '正常';
-        let statusClass = 'text-green-600';
+        let status = "正常";
+        let statusClass = "text-green";
 
         if (item.prepareDays > 1) {
-          status = '⚠ 生产预警';
-          statusClass = 'text-yellow-600';
+          status = "⚠ 生产预警";
+          statusClass = "text-yellow";
         }
 
-        let rowClass = '';
+        let rowClass = "";
         const overdueDays = dateDiffInDays(item.shipDate, today);
 
         if (overdueDays > 0) {
-          rowClass = 'bg-red-200';
+          rowClass = "row-danger";
         }
 
         tbody += `
-          <tr class="text-center ${rowClass}">
-            <td class="border p-1">${item.factory}</td>
-            <td class="border p-1">${item.style}</td>
-            <td class="border p-1">${item.prepareDays}</td>
-            <td class="border p-1">${formatDate(item.onlineStart)}</td>
-            <td class="border p-1 font-bold">${formatDate(item.shipDate)}</td>
-            <td class="border p-1 font-bold ${statusClass}">${status}</td>
-            <td class="border p-1">
-              <button onclick="deleteRow(${item.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
-                删除
-              </button>
+          <tr class="${rowClass}">
+            <td>${item.factory}</td>
+            <td>${item.style}</td>
+            <td>${item.prepareDays}</td>
+            <td>${formatDate(item.onlineStart)}</td>
+            <td><strong>${formatDate(item.shipDate)}</strong></td>
+            <td class="${statusClass}">${status}</td>
+            <td>
+              <button class="btn-delete" onclick="deleteRow(${item.id})">删除</button>
             </td>
           </tr>
         `;
       });
 
-      document.getElementById('tableBody').innerHTML = tbody;
+      document.getElementById("tableBody").innerHTML = tbody;
 
-      const warn = document.getElementById('lineWarning');
+      const warn = document.getElementById("lineWarning");
       if (!futureOnlineExists && dataList.length > 0) {
-        warn.innerText = '⚠ 未来1天无款可上线，存在断线风险';
-        warn.className = 'text-red-600 text-center font-bold';
+        warn.innerText = "⚠ 未来1天无款可上线，存在断线风险";
+        warn.className = "warning bad";
       } else {
-        warn.innerText = '✅ 生产节奏正常';
-        warn.className = 'text-green-600 text-center font-bold';
+        warn.innerText = "✅ 生产节奏正常";
+        warn.className = "warning good";
       }
 
       saveData();
     }
 
     function deleteRow(id) {
-      dataList = dataList.filter(item => item.id !== id);
+      dataList = dataList.filter((item) => item.id !== id);
       saveData();
       renderTable();
     }
@@ -215,42 +430,69 @@
     }
 
     function dateDiffInDays(date1, date2) {
-      const diff = date2 - date1;
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      d1.setHours(0, 0, 0, 0);
+      d2.setHours(0, 0, 0, 0);
+      const diff = d2 - d1;
       return Math.floor(diff / (1000 * 60 * 60 * 24));
     }
 
     function formatDate(date) {
-      if (!(date instanceof Date) || isNaN(date)) return '';
-      return date.toISOString().split('T')[0];
+      if (!(date instanceof Date) || isNaN(date)) return "";
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + d;
     }
 
     function exportImage() {
-      html2canvas(document.getElementById('captureArea')).then(canvas => {
-        const image = canvas.toDataURL('image/png');
-        const newWindow = window.open('');
+      if (typeof html2canvas === "undefined") {
+        alert("截图组件加载失败，请刷新页面后重试");
+        return;
+      }
+
+      html2canvas(document.getElementById("captureArea"), {
+        scale: 2,
+        useCORS: true
+      }).then((canvas) => {
+        const image = canvas.toDataURL("image/png");
+        const newWindow = window.open("");
+        if (!newWindow) {
+          alert("浏览器拦截了新窗口，请允许弹窗后再试");
+          return;
+        }
         newWindow.document.write(`
           <html>
-            <body style="margin:0;text-align:center;">
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+              <title>导出图片</title>
+            </head>
+            <body style="margin:0;text-align:center;font-family:sans-serif;">
               <h3>长按图片保存</h3>
-              <img src="${image}" style="width:100%;" />
+              <img src="${image}" style="width:100%;max-width:100%;" />
             </body>
           </html>
         `);
+      }).catch(() => {
+        alert("截图失败，请稍后重试");
       });
     }
 
     function exportBackup() {
       const backupData = {
         exportTime: new Date().toISOString(),
-        appName: '吊挂生产节奏系统',
+        appName: "吊挂生产节奏系统",
         dataList: dataList
       };
 
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+        type: "application/json"
+      });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = '吊挂生产节奏系统备份.json';
+      a.download = "吊挂生产节奏系统备份.json";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -267,11 +509,11 @@
           const backupData = JSON.parse(e.target.result);
 
           if (!backupData.dataList || !Array.isArray(backupData.dataList)) {
-            alert('备份文件格式不正确');
+            alert("备份文件格式不正确");
             return;
           }
 
-          dataList = backupData.dataList.map(item => ({
+          dataList = backupData.dataList.map((item) => ({
             ...item,
             onlineStart: new Date(item.onlineStart),
             shipDate: new Date(item.shipDate)
@@ -279,14 +521,14 @@
 
           saveData();
           renderTable();
-          alert('备份导入成功');
+          alert("备份导入成功");
         } catch (error) {
-          alert('导入失败：文件内容无效');
+          alert("导入失败：文件内容无效");
         }
       };
 
       reader.readAsText(file);
-      event.target.value = '';
+      event.target.value = "";
     }
 
     loadData();

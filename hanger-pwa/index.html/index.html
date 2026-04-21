@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>吊挂生产节奏系统</title>
+
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="吊挂节奏" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-100 p-3">
+  <div id="captureArea" class="max-w-6xl mx-auto bg-white p-4 rounded-xl shadow space-y-4">
+    <h1 class="text-xl font-bold text-center text-blue-600">
+      吊挂生产节奏智能控制系统
+    </h1>
+
+    <div class="grid grid-cols-2 gap-2">
+      <select id="factory" class="border p-2 rounded">
+        <option value="">选择工厂</option>
+        <option value="彬彬鑫典">彬彬鑫典</option>
+        <option value="三伏潭">三伏潭</option>
+        <option value="勤劳">勤劳</option>
+        <option value="外协厂">外协厂</option>
+      </select>
+
+      <input id="style" placeholder="款号" class="border p-2 rounded" />
+      <input type="date" id="fabricDate" class="border p-2 rounded" />
+      <input type="number" id="prepareDays" placeholder="线外准备天数" step="0.5" class="border p-2 rounded" />
+      <input type="number" id="onlineDays" placeholder="线上生产天数" class="border p-2 rounded" />
+
+      <select id="wash" class="border p-2 rounded">
+        <option value="0">不洗水</option>
+        <option value="1">水洗(+1天)</option>
+        <option value="2">水洗(+2天)</option>
+        <option value="3">水洗(+3天)</option>
+        <option value="4">水洗(+4天)</option>
+        <option value="5">水洗(+5天)</option>
+      </select>
+    </div>
+
+    <button onclick="addRow()" class="w-full bg-blue-600 text-white p-2 rounded">
+      新增款式
+    </button>
+
+    <div id="lineWarning" class="text-center font-bold"></div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-xs mt-4 border">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border p-1">工厂</th>
+            <th class="border p-1">款号</th>
+            <th class="border p-1">线外天数</th>
+            <th class="border p-1">预计上线</th>
+            <th class="border p-1">预计出货</th>
+            <th class="border p-1">生产预警</th>
+            <th class="border p-1">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto mt-4 grid grid-cols-1 gap-3">
+    <button onclick="exportImage()" class="w-full bg-green-600 text-white p-3 rounded">
+      导出截图发群
+    </button>
+
+    <button onclick="exportBackup()" class="w-full bg-indigo-600 text-white p-3 rounded">
+      导出备份文件
+    </button>
+
+    <label class="w-full bg-orange-500 text-white p-3 rounded text-center block cursor-pointer">
+      导入备份文件
+      <input type="file" id="backupFile" accept=".json" onchange="importBackup(event)" class="hidden" />
+    </label>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./service-worker.js');
+      });
+    }
+
+    let dataList = [];
+
+    function saveData() {
+      localStorage.setItem('dataList', JSON.stringify(dataList));
+    }
+
+    function loadData() {
+      const savedData = localStorage.getItem('dataList');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        dataList = parsedData.map(item => ({
+          ...item,
+          onlineStart: new Date(item.onlineStart),
+          shipDate: new Date(item.shipDate)
+        }));
+      }
+    }
+
+    function addRow() {
+      const factory = document.getElementById('factory').value;
+      const style = document.getElementById('style').value;
+      const fabricDate = document.getElementById('fabricDate').value;
+      const prepareDays = parseFloat(document.getElementById('prepareDays').value) || 1;
+      const onlineDays = parseInt(document.getElementById('onlineDays').value) || 1;
+      const wash = parseInt(document.getElementById('wash').value);
+
+      if (!factory || !style || !fabricDate) {
+        alert('请先填写完整信息');
+        return;
+      }
+
+      const fabric = new Date(fabricDate);
+      const onlineStart = new Date(fabric);
+      onlineStart.setDate(onlineStart.getDate() + 2 + prepareDays);
+
+      const shipDate = new Date(onlineStart);
+      shipDate.setDate(shipDate.getDate() + onlineDays + wash + 1);
+
+      dataList.push({
+        id: Date.now(),
+        factory,
+        style,
+        prepareDays,
+        onlineStart,
+        shipDate
+      });
+
+      saveData();
+      renderTable();
+    }
+
+    function renderTable() {
+      let tbody = '';
+      const today = new Date();
+      let futureOnlineExists = false;
+
+      dataList = dataList.filter(item => {
+        const diffDays = dateDiffInDays(item.shipDate, today);
+        return diffDays <= 2;
+      });
+
+      dataList.forEach(item => {
+        if (item.onlineStart <= addDays(today, 1)) {
+          futureOnlineExists = true;
+        }
+
+        let status = '正常';
+        let statusClass = 'text-green-600';
+
+        if (item.prepareDays > 1) {
+          status = '⚠ 生产预警';
+          statusClass = 'text-yellow-600';
+        }
+
+        let rowClass = '';
+        const overdueDays = dateDiffInDays(item.shipDate, today);
+
+        if (overdueDays > 0) {
+          rowClass = 'bg-red-200';
+        }
+
+        tbody += `
+          <tr class="text-center ${rowClass}">
+            <td class="border p-1">${item.factory}</td>
+            <td class="border p-1">${item.style}</td>
+            <td class="border p-1">${item.prepareDays}</td>
+            <td class="border p-1">${formatDate(item.onlineStart)}</td>
+            <td class="border p-1 font-bold">${formatDate(item.shipDate)}</td>
+            <td class="border p-1 font-bold ${statusClass}">${status}</td>
+            <td class="border p-1">
+              <button onclick="deleteRow(${item.id})" class="bg-red-500 text-white px-2 py-1 rounded text-xs">
+                删除
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('tableBody').innerHTML = tbody;
+
+      const warn = document.getElementById('lineWarning');
+      if (!futureOnlineExists && dataList.length > 0) {
+        warn.innerText = '⚠ 未来1天无款可上线，存在断线风险';
+        warn.className = 'text-red-600 text-center font-bold';
+      } else {
+        warn.innerText = '✅ 生产节奏正常';
+        warn.className = 'text-green-600 text-center font-bold';
+      }
+
+      saveData();
+    }
+
+    function deleteRow(id) {
+      dataList = dataList.filter(item => item.id !== id);
+      saveData();
+      renderTable();
+    }
+
+    function addDays(date, days) {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    }
+
+    function dateDiffInDays(date1, date2) {
+      const diff = date2 - date1;
+      return Math.floor(diff / (1000 * 60 * 60 * 24));
+    }
+
+    function formatDate(date) {
+      if (!(date instanceof Date) || isNaN(date)) return '';
+      return date.toISOString().split('T')[0];
+    }
+
+    function exportImage() {
+      html2canvas(document.getElementById('captureArea')).then(canvas => {
+        const image = canvas.toDataURL('image/png');
+        const newWindow = window.open('');
+        newWindow.document.write(`
+          <html>
+            <body style="margin:0;text-align:center;">
+              <h3>长按图片保存</h3>
+              <img src="${image}" style="width:100%;" />
+            </body>
+          </html>
+        `);
+      });
+    }
+
+    function exportBackup() {
+      const backupData = {
+        exportTime: new Date().toISOString(),
+        appName: '吊挂生产节奏系统',
+        dataList: dataList
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '吊挂生产节奏系统备份.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const backupData = JSON.parse(e.target.result);
+
+          if (!backupData.dataList || !Array.isArray(backupData.dataList)) {
+            alert('备份文件格式不正确');
+            return;
+          }
+
+          dataList = backupData.dataList.map(item => ({
+            ...item,
+            onlineStart: new Date(item.onlineStart),
+            shipDate: new Date(item.shipDate)
+          }));
+
+          saveData();
+          renderTable();
+          alert('备份导入成功');
+        } catch (error) {
+          alert('导入失败：文件内容无效');
+        }
+      };
+
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    loadData();
+    renderTable();
+  </script>
+</body>
+</html>

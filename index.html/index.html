@@ -106,6 +106,10 @@
       line-height: 24px;
     }
 
+    .btn-gray {
+      background: #6b7280;
+    }
+
     .warning {
       text-align: center;
       font-weight: 700;
@@ -129,7 +133,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 720px;
+      min-width: 920px;
       font-size: 13px;
     }
 
@@ -138,6 +142,7 @@
       border: 1px solid #d1d5db;
       padding: 8px 6px;
       text-align: center;
+      white-space: nowrap;
     }
 
     th {
@@ -158,8 +163,8 @@
       font-weight: 700;
     }
 
-    .btn-delete {
-      background: #ef4444;
+    .btn-delete,
+    .btn-edit {
       border: none;
       color: white;
       padding: 6px 10px;
@@ -167,6 +172,23 @@
       font-size: 12px;
       min-height: auto;
       width: auto;
+      margin: 2px;
+      cursor: pointer;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+    }
+
+    .btn-edit {
+      background: #f59e0b;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
 
     .action-group {
@@ -185,6 +207,24 @@
       text-align: center;
     }
 
+    .editing-bar {
+      display: none;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .extra-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
     @media (max-width: 640px) {
       body {
         padding: 10px;
@@ -199,12 +239,13 @@
         font-size: 20px;
       }
 
-      .form-grid {
+      .form-grid,
+      .extra-actions {
         grid-template-columns: 1fr;
       }
 
       table {
-        min-width: 640px;
+        min-width: 860px;
       }
     }
   </style>
@@ -239,9 +280,18 @@
           <option value="5">水洗(+5天)</option>
         </select>
 
-        <button class="btn-blue full" onclick="addRow()">新增款式</button>
+        <input id="color" placeholder="颜色（手动输入）" />
+        <input id="qty" type="number" placeholder="数量（手动输入）" min="1" />
+
+        <button id="submitBtn" class="btn-blue full" onclick="handleSubmit()">新增款式</button>
+
+        <div class="full extra-actions" id="editActions" style="display: none;">
+          <button class="btn-gray" onclick="cancelEdit()">取消编辑</button>
+          <button class="btn-blue" onclick="handleSubmit()">保存修改</button>
+        </div>
       </div>
 
+      <div id="editingBar" class="editing-bar">当前正在编辑记录</div>
       <div id="lineWarning" class="warning good">✅ 生产节奏正常</div>
 
       <div class="table-wrap">
@@ -250,6 +300,7 @@
             <tr>
               <th>工厂</th>
               <th>款号</th>
+              <th>颜色/数量</th>
               <th>线外天数</th>
               <th>预计上线</th>
               <th>预计出货</th>
@@ -293,9 +344,45 @@
     }
 
     let dataList = [];
+    let editingId = null;
 
     function saveData() {
       localStorage.setItem("dataList", JSON.stringify(dataList));
+    }
+
+    function normalizeItem(item) {
+      const fabricDate = item.fabricDate || "";
+      const prepareDays = Number(item.prepareDays || 0);
+      const onlineDays = Number(item.onlineDays || 0);
+      const wash = Number(item.wash || 0);
+
+      let onlineStart = item.onlineStart ? new Date(item.onlineStart) : null;
+      let shipDate = item.shipDate ? new Date(item.shipDate) : null;
+
+      if ((!onlineStart || isNaN(onlineStart)) && fabricDate) {
+        const fabric = new Date(fabricDate + "T00:00:00");
+        if (!isNaN(fabric)) {
+          onlineStart = new Date(fabric);
+          onlineStart.setDate(onlineStart.getDate() + 2 + prepareDays);
+        }
+      }
+
+      if ((!shipDate || isNaN(shipDate)) && onlineStart && !isNaN(onlineStart)) {
+        shipDate = new Date(onlineStart);
+        shipDate.setDate(shipDate.getDate() + onlineDays + wash + 1);
+      }
+
+      return {
+        ...item,
+        fabricDate,
+        onlineDays,
+        wash,
+        color: item.color || "",
+        qty: item.qty || "",
+        prepareDays,
+        onlineStart: onlineStart && !isNaN(onlineStart) ? onlineStart : new Date(""),
+        shipDate: shipDate && !isNaN(shipDate) ? shipDate : new Date("")
+      };
     }
 
     function loadData() {
@@ -303,24 +390,22 @@
       if (savedData) {
         try {
           const parsedData = JSON.parse(savedData);
-          dataList = parsedData.map((item) => ({
-            ...item,
-            onlineStart: new Date(item.onlineStart),
-            shipDate: new Date(item.shipDate)
-          }));
+          dataList = parsedData.map(normalizeItem);
         } catch (e) {
           dataList = [];
         }
       }
     }
 
-    function addRow() {
+    function handleSubmit() {
       const factory = document.getElementById("factory").value.trim();
       const style = document.getElementById("style").value.trim();
       const fabricDate = document.getElementById("fabricDate").value;
       const prepareDays = parseFloat(document.getElementById("prepareDays").value) || 1;
       const onlineDays = parseInt(document.getElementById("onlineDays").value) || 1;
       const wash = parseInt(document.getElementById("wash").value) || 0;
+      const color = document.getElementById("color").value.trim();
+      const qty = document.getElementById("qty").value.trim();
 
       if (!factory || !style || !fabricDate) {
         alert("请先填写完整信息");
@@ -334,14 +419,32 @@
       const shipDate = new Date(onlineStart);
       shipDate.setDate(shipDate.getDate() + onlineDays + wash + 1);
 
-      dataList.push({
-        id: Date.now(),
+      const rowData = {
         factory,
         style,
+        fabricDate,
         prepareDays,
+        onlineDays,
+        wash,
+        color,
+        qty,
         onlineStart,
         shipDate
-      });
+      };
+
+      if (editingId !== null) {
+        dataList = dataList.map((item) =>
+          item.id === editingId ? normalizeItem({ ...item, ...rowData }) : item
+        );
+        cancelEdit(false);
+      } else {
+        dataList.push(
+          normalizeItem({
+            id: Date.now(),
+            ...rowData
+          })
+        );
+      }
 
       saveData();
       renderTable();
@@ -349,11 +452,14 @@
     }
 
     function clearForm() {
+      document.getElementById("factory").value = "";
       document.getElementById("style").value = "";
       document.getElementById("fabricDate").value = "";
       document.getElementById("prepareDays").value = "";
       document.getElementById("onlineDays").value = "";
       document.getElementById("wash").value = "0";
+      document.getElementById("color").value = "";
+      document.getElementById("qty").value = "";
     }
 
     function renderTable() {
@@ -363,10 +469,12 @@
 
       let futureOnlineExists = false;
 
-      dataList = dataList.filter((item) => {
-        const diffDays = dateDiffInDays(item.shipDate, today);
-        return diffDays <= 2;
-      });
+      dataList = dataList
+        .map(normalizeItem)
+        .filter((item) => {
+          const diffDays = dateDiffInDays(item.shipDate, today);
+          return diffDays <= 2;
+        });
 
       dataList.forEach((item) => {
         if (item.onlineStart <= addDays(today, 1)) {
@@ -388,16 +496,22 @@
           rowClass = "row-danger";
         }
 
+        const colorQtyText = buildColorQtyText(item.color, item.qty);
+
         tbody += `
           <tr class="${rowClass}">
             <td>${item.factory}</td>
             <td>${item.style}</td>
+            <td>${colorQtyText}</td>
             <td>${item.prepareDays}</td>
             <td>${formatDate(item.onlineStart)}</td>
             <td><strong>${formatDate(item.shipDate)}</strong></td>
             <td class="${statusClass}">${status}</td>
             <td>
-              <button class="btn-delete" onclick="deleteRow(${item.id})">删除</button>
+              <div class="action-buttons">
+                <button class="btn-edit" onclick="editRow(${item.id})">编辑</button>
+                <button class="btn-delete" onclick="deleteRow(${item.id})">删除</button>
+              </div>
             </td>
           </tr>
         `;
@@ -417,7 +531,48 @@
       saveData();
     }
 
+    function buildColorQtyText(color, qty) {
+      const colorText = color || "-";
+      const qtyText = qty || "-";
+      return colorText + " / " + qtyText;
+    }
+
+    function editRow(id) {
+      const item = dataList.find((row) => row.id === id);
+      if (!item) return;
+
+      editingId = id;
+
+      document.getElementById("factory").value = item.factory || "";
+      document.getElementById("style").value = item.style || "";
+      document.getElementById("fabricDate").value = item.fabricDate || "";
+      document.getElementById("prepareDays").value = item.prepareDays || "";
+      document.getElementById("onlineDays").value = item.onlineDays || "";
+      document.getElementById("wash").value = String(item.wash || 0);
+      document.getElementById("color").value = item.color || "";
+      document.getElementById("qty").value = item.qty || "";
+
+      document.getElementById("submitBtn").style.display = "none";
+      document.getElementById("editActions").style.display = "grid";
+      document.getElementById("editingBar").style.display = "block";
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function cancelEdit(clear = true) {
+      editingId = null;
+      document.getElementById("submitBtn").style.display = "block";
+      document.getElementById("editActions").style.display = "none";
+      document.getElementById("editingBar").style.display = "none";
+      if (clear) {
+        clearForm();
+      }
+    }
+
     function deleteRow(id) {
+      if (editingId === id) {
+        cancelEdit();
+      }
       dataList = dataList.filter((item) => item.id !== id);
       saveData();
       renderTable();
@@ -440,7 +595,7 @@
 
     function formatDate(date) {
       if (!(date instanceof Date) || isNaN(date)) return "";
-      const y = date.getFullYear();
+      const y = String(date.getFullYear()).slice(-2);
       const m = String(date.getMonth() + 1).padStart(2, "0");
       const d = String(date.getDate()).padStart(2, "0");
       return y + "-" + m + "-" + d;
@@ -513,12 +668,9 @@
             return;
           }
 
-          dataList = backupData.dataList.map((item) => ({
-            ...item,
-            onlineStart: new Date(item.onlineStart),
-            shipDate: new Date(item.shipDate)
-          }));
+          dataList = backupData.dataList.map(normalizeItem);
 
+          cancelEdit();
           saveData();
           renderTable();
           alert("备份导入成功");
@@ -536,4 +688,4 @@
   </script>
 </body>
 </html>
-<!-- redeploy 2026-04-21 -->
+<!-- redeploy 2026-04-22 -->
